@@ -64,7 +64,10 @@ jobs:
         uses: ./.github/actions/frontend/setup
 
       - name: Build, lint, typecheck, test
-        run: yarn turbo run release:dryrun $AFFECTED
+        # Concurrency is the runner's core count: each vitest task brings its
+        # own worker pool, and turbo's default of 10 tasks thrashes 4 cores
+        # until tests hit their 5s timeout.
+        run: yarn turbo run release:dryrun $AFFECTED --concurrency=4
         working-directory: ./frontend
         env:
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
