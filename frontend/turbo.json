@@ -51,7 +51,8 @@
       "dependsOn": ["^build", "^typecheck"]
     },
     "test": {
-      "dependsOn": ["^build", "^test"]
+      "dependsOn": ["^build", "^test"],
+      "passThroughEnv": ["CI", "HOME", "PLAYWRIGHT_BROWSERS_PATH"]
     },
     "test:ui": {
       "cache": false,
@@ -61,6 +62,8 @@
         "APPLITOOLS_BATCH_ID",
         "APPLITOOLS_BATCH_NAME",
         "APPLITOOLS_BRANCH",
+        "APPLITOOLS_SHOULD_REPORT_FAILURE",
+        "CI",
         "HOME",
         "PLAYWRIGHT_BROWSERS_PATH",
         "PLAYWRIGHT_PROVIDER",
