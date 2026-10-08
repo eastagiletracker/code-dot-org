@@ -14,6 +14,14 @@ exec('yarn dotenv-run -- eyes-storybook', (error, stdout) => {
   const testsSuccessful =
     error == null && stdout.includes('No differences were found!');
 
+  // Same rule as playwright-support's visual checks: PRs only report, pushes fail.
+  if (
+    !testsSuccessful &&
+    process.env.APPLITOOLS_SHOULD_REPORT_FAILURE !== 'false'
+  ) {
+    process.exitCode = 1;
+  }
+
   if (!eyesFailureLink || process.env.CI !== 'true') {
     console.log(stdout);
     console.log(error);

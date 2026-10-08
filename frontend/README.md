@@ -124,7 +124,7 @@ copy it from `frontend/.env.example`)
 To run the visual tests:
 
 ```bash
-yarn workspace @code-dot-org/design-system-storybook eyes-storybook
+yarn workspace @code-dot-org/design-system-storybook test:ui
 ```
 
 If differences are detected, follow the [baseline update](https://applitools.com/docs/topics/overview/overview-reviewing-test-results.html) guide to resolve.

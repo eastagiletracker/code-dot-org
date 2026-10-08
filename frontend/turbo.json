@@ -53,14 +53,9 @@
     "test": {
       "dependsOn": ["^build", "^test"]
     },
-    "test:ui:ci": {
-      "cache": false,
-      "dependsOn": ["^build", "^test:ui:ci"],
-      "env": ["STAGE"]
-    },
     "test:ui": {
       "cache": false,
-      "dependsOn": ["^build", "^test:ui"],
+      "dependsOn": ["build", "^test:ui"],
       "passThroughEnv": [
         "APPLITOOLS_API_KEY",
         "APPLITOOLS_BATCH_ID",
@@ -78,6 +73,14 @@
       "cache": false,
       "persistent": true,
       "dependsOn": ["^build"]
+    },
+    "deploy": {
+      "cache": false,
+      "dependsOn": ["build"]
+    },
+    "release": {
+      "cache": false,
+      "dependsOn": ["release:dryrun"]
     }
   }
 }

@@ -223,10 +223,10 @@ module TestRunUtils
   end
 
   def self.run_frontend_tests
-    Dir.chdir(frontend_dir) do
+    Dir.chdir(apps_dir) do
       ChatClient.wrap('frontend tests') do
-        # Only run frontend tests that are relevant to `code-dot-org/apps`
-        RakeUtils.system_stream_output 'yarn test --filter @code-dot-org/component-library'
+        # The gate Frontend-CI runs, scoped to the packages apps/ consumes.
+        RakeUtils.system_stream_output './script/frontend-dependencies.sh release:dryrun'
       end
     end
   end

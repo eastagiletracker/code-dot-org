@@ -19,8 +19,8 @@
   "scripts": {
     "build": "storybook build -o dist/component-library-storybook",
     "clean": "rimraf dist",
+    "deploy": "gh-pages --dist dist --nojekyll",
     "dev": "yarn run storybook",
-    "eyes-storybook": "tsx ./scripts/eyes-storybook.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "prettier": "prettier --check .",
@@ -28,7 +28,7 @@
     "storybook": "storybook dev -p 6006",
     "test": "vitest --run",
     "test-storybook": "vitest --project=storybook",
-    "test:ui:ci": "bash ./scripts/test-storybook.sh",
+    "test:ui": "tsx ./scripts/eyes-storybook.ts",
     "test:ui:local": "test-storybook --url http://localhost:6006",
     "typecheck": "tsc -b --noEmit"
   },
@@ -58,6 +58,7 @@
     "@vitest/coverage-v8": "catalog:",
     "axe-playwright": "^2.0.3",
     "concurrently": "^9.1.0",
+    "gh-pages": "^6.3.0",
     "globals": "catalog:",
     "http-server": "^14.1.1",
     "playwright": "catalog:",

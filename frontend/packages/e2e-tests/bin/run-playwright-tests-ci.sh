@@ -53,4 +53,4 @@ rm -rf "$report_dir" "$results_dir"
 # These variables replace the paths in playwright.config.ts.
 PLAYWRIGHT_HTML_OUTPUT_DIR="$report_dir" \
 PLAYWRIGHT_JSON_OUTPUT_FILE="$results_dir/results.json" \
-  yarn run test:ui "${suite_args[@]}" --output="$results_dir"
+  yarn run test:studio "${suite_args[@]}" --output="$results_dir"

@@ -213,7 +213,7 @@ Each lab is generated with a Playwright e2e suite:
 - `e2e/visual.spec.ts` — a seed `@visual` checkpoint of the initial render
 
 Run locally: `yarn test:ui` (functional only; reuses an already-running `yarn dev` at port 5173).
-Run in CI: `yarn test:ui:ci` (spins up its own server via `webServer`).
+With `CI=true`, as on a runner, it starts its own server via `webServer` and retries.
 
 Visual regression rides on `@code-dot-org/playwright-support`: writing a
 `visualCheck()` is the only opt-in. No baselines are committed —
@@ -221,12 +221,11 @@ Visual regression rides on `@code-dot-org/playwright-support`: writing a
 snapshots, and CI diffs against Applitools. Visual projects are chromium-only
 by default; widen with `visualProjects({browsers})`.
 
-The generator also creates `.github/workflows/<name>-ci.yml` (two jobs: `build`
-via `turbo release:dryrun` and `e2e` via Playwright in the pinned container, with
-`VISUAL_PROVIDER=applitools` + `APPLITOOLS_API_KEY` so `@visual` tests diff against
-Eyes) and updates `frontend-ci.yml` with a `paths-filter` output, filter entry,
-conditional job (passing `playwright-image-tag`), and `teardown.needs` entry for
-the new lab.
+CI needs no registration. `frontend-ci.yml` runs the verbs a package may
+implement (`release:dryrun`, `test:ui`, `deploy`) through turbo, so a package is
+covered as soon as its `package.json` defines the script. `test:ui` runs in the
+pinned Playwright container with `VISUAL_PROVIDER=applitools` and
+`APPLITOOLS_API_KEY`, so `@visual` tests diff against Eyes.
 
 ## Runtime config
 
