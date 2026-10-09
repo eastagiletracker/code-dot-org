@@ -37,9 +37,29 @@ env:
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
+  # Determines whether this workflow itself changed. Turborepo's affected feature limits a PR's CI to the packages it
+  # changed and their dependents, but Turborepo cannot see `.github`, so a PR that changes the workflow runs everything.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      workflow: ${{ steps.filter.outputs.workflow }}
+    steps:
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        # Pull requests are diffed through the API; a push needs a checkout, and runs everything regardless.
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            workflow:
+              - '.github/**'
+
   release-dryrun:
     name: release:dryrun
+    needs: changes
     runs-on: ubuntu-24.04
+    env:
+      # Limits the run to the packages this PR changed and their dependents, unless the workflow itself changed.
+      AFFECTED: ${{ github.event_name == 'pull_request' && needs.changes.outputs.workflow != 'true' && '--affected' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,11 +70,6 @@ jobs:
           lfs: true
           fetch-depth: 2
 
-      - name: Scope to Affected Packages
-        # Sets `AFFECTED` so Turborepo runs only the packages this PR changed and their dependents. A PR that changes the workflow itself runs everything, since Turborepo cannot see .github.
-        if: github.event_name == 'pull_request'
-        run: git diff --quiet HEAD^1 -- .github && echo "AFFECTED=--affected" >> "$GITHUB_ENV" || true
-
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
@@ -64,12 +79,15 @@ jobs:
 
   test-ui:
     name: test:ui:ci
+    needs: changes
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
       # Must stay in sync with the playwright catalog pin in frontend/.yarnrc.yml; noble is the runner's Ubuntu release.
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
+      # Limits the run to the packages this PR changed and their dependents, unless the workflow itself changed.
+      AFFECTED: ${{ github.event_name == 'pull_request' && needs.changes.outputs.workflow != 'true' && '--affected' || '' }}
       # Each suite already fills the runner with its own workers.
       TURBO_CONCURRENCY: 1
     steps:
@@ -88,11 +106,6 @@ jobs:
       - name: Trust the Checkout
         # System level: later steps run with a different HOME, and the container's root does not own the checkout.
         run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
-
-      - name: Scope to Affected Packages
-        # Sets `AFFECTED` so Turborepo runs only the packages this PR changed and their dependents. A PR that changes the workflow itself runs everything, since Turborepo cannot see .github.
-        if: github.event_name == 'pull_request'
-        run: git diff --quiet HEAD^1 -- .github && echo "AFFECTED=--affected" >> "$GITHUB_ENV" || true
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
