@@ -57,7 +57,7 @@ jobs:
   test-ui:
     name: test:ui
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 40
     env:
       # Each suite already fills the runner with its own workers.
       TURBO_CONCURRENCY: 1
