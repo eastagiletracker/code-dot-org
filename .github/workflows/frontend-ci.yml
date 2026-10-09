@@ -1,7 +1,8 @@
-# CI for the frontend workspace. Each job runs one turbo verb; a package is
-# covered as soon as its package.json defines the script, and turbo skips the
-# packages that do not. Pull requests run the packages they change and their
-# dependents; pushes run everything, with turbo's cache skipping what is unchanged.
+# Common workflow for execution of continuous integration for the `frontend` code base.
+# Each job runs one turbo task across every app and package in `frontend`. A package takes part
+# as soon as its package.json defines the script, and turbo skips the packages that do not.
+# Pull requests run only the packages they change and their dependents; pushes run everything,
+# with turbo's cache skipping what is unchanged.
 name: Frontend-CI
 
 on:
@@ -29,18 +30,19 @@ permissions:
 
 env:
   AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
-  # actions/checkout fetches depth 2, so HEAD^1 is the PR's base for --affected.
+  # actions/checkout fetches depth 2, so HEAD^1 is the pull request's base for `--affected`.
   TURBO_SCM_BASE: HEAD^1
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
+  # Builds, lints, typechecks and tests every affected package
   release-dryrun:
     name: release:dryrun
     runs-on: ubuntu-24.04
     container:
-      # Storybook's vitest browser project needs Playwright's Chromium. The tag's
-      # version must match the catalog pin in frontend/.yarnrc.yml; its variant
-      # (noble/jammy) must match the runner's Ubuntu release.
+      # Playwright container image, needed for Storybook's vitest browser project. Version must
+      # match the catalog pin in frontend/.yarnrc.yml; variant (noble/jammy) must match the
+      # runner's Ubuntu release.
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     steps:
       - name: Install LFS
@@ -55,24 +57,25 @@ jobs:
           lfs: true
           fetch-depth: 2
 
-      - name: Trust the checkout
-        # The container's root user is not the checkout's owner. System level,
-        # because steps below run with a different HOME.
+      - name: Trust the Checkout
+        # The container's root user does not own the checkout, and git refuses to read a
+        # repository owned by someone else. System level, since later steps run with a different HOME.
         run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
-      - name: Build, lint, typecheck, test
-        # Concurrency is the runner's core count: each vitest task brings its
-        # own worker pool, and turbo's default of 10 tasks thrashes 4 cores
-        # until tests hit their 5s timeout.
+      - name: Build, Lint, Typecheck, Test
+        # Concurrency matches the runner's core count. Each vitest task brings its own worker
+        # pool, so turbo's default of 10 concurrent tasks thrashes 4 cores until tests hit
+        # their 5s timeout.
         run: yarn turbo run release:dryrun $AFFECTED --concurrency=4
         working-directory: ./frontend
         env:
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
           HOME: /root
 
+  # Lists the packages that define `test:ui`, for the matrix below
   plan:
     name: test:ui plan
     runs-on: ubuntu-24.04
@@ -89,9 +92,9 @@ jobs:
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
-      - name: List the packages that implement test:ui
+      - name: List test:ui Packages
         id: packages
-        # Unscoped names, because artifact names cannot contain "/".
+        # Package names without their scope, since artifact names cannot contain "/".
         run: |
           packages=$(yarn turbo run test:ui $AFFECTED --dry=json \
             | jq -c '[.tasks[] | select(.task == "test:ui" and .command != "<NONEXISTENT>") | .package | ltrimstr("@code-dot-org/")]')
@@ -99,6 +102,7 @@ jobs:
           echo "$packages"
         working-directory: ./frontend
 
+  # Runs each package's own browser suite on its own runner
   test-ui:
     name: test:ui ${{ matrix.package }}
     needs: plan
@@ -123,14 +127,14 @@ jobs:
             .github
           lfs: true
 
-      - name: Trust the checkout
+      - name: Trust the Checkout
         run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
-      - name: UI tests
-        # The package's own suite: Playwright functional projects and, with
+      - name: UI Tests
+        # One Playwright run covers the package's functional projects and, with
         # VISUAL_PROVIDER=applitools, its @visual projects against Eyes.
         # HOME=/root is Playwright's Firefox-in-container fix.
         run: yarn turbo run test:ui --filter=@code-dot-org/${{ matrix.package }}
@@ -157,6 +161,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Runs each package's `deploy` script after a merge to staging
   deploy:
     name: deploy
     if: ${{ github.event_name == 'push' }}
@@ -180,7 +185,7 @@ jobs:
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
-      - name: Let package deploys push as the Actions bot
+      - name: Authenticate Git for Deploys
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -190,12 +195,14 @@ jobs:
         run: yarn turbo run deploy
         working-directory: ./frontend
 
+  # Common teardown actions that must occur after _all_ jobs have completed.
+  # For example, closing the Applitools batch after its completion.
   teardown:
     needs: [release-dryrun, test-ui]
     if: always()
     runs-on: ubuntu-24.04
     steps:
-      # Close the Eyes batch after all distributed Eyes tests have completed.
+      # Close the eyes batch after all distributed eyes tests have completed
       - name: Update Applitools batch status
         run: |
           curl -X POST "https://eyesapi.applitools.com/api/externals/github/servers/github.com/commit/${{ env.APPLITOOLS_BATCH_ID }}/${{ github.run_id }}/complete?apiKey=${{ secrets.APPLITOOLS_API_KEY }}"

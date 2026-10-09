@@ -49,7 +49,7 @@ describe('getDisplayTree on shipped datasets', () => {
         modelPredictions(state),
       );
     },
-    // Trains on the whole dataset: under a second alone, seconds on a loaded CI runner.
+    // Training on a whole shipped dataset takes under a second alone and several on a busy CI runner.
     30_000,
   );
 

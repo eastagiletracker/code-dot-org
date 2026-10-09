@@ -14,7 +14,7 @@ exec('yarn dotenv-run -- eyes-storybook', (error, stdout) => {
   const testsSuccessful =
     error == null && stdout.includes('No differences were found!');
 
-  // Same rule as playwright-support's visual checks: PRs only report, pushes fail.
+  // Mirrors playwright-support: on a pull request a difference is only reported, on a push it fails the run.
   if (
     !testsSuccessful &&
     process.env.APPLITOOLS_SHOULD_REPORT_FAILURE !== 'false'

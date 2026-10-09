@@ -225,7 +225,7 @@ module TestRunUtils
   def self.run_frontend_tests
     Dir.chdir(apps_dir) do
       ChatClient.wrap('frontend tests') do
-        # The gate Frontend-CI runs, scoped to the packages apps/ consumes.
+        # Run the same gate as Frontend-CI, only for the frontend packages that `code-dot-org/apps` consumes
         RakeUtils.system_stream_output './script/frontend-dependencies.sh release:dryrun'
       end
     end

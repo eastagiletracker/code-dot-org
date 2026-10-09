@@ -358,7 +358,7 @@ namespace :test do
   namespace :changed do
     desc 'Runs frontend tests if frontend might have changed from staging.'
     timed_task_with_logging :frontend do
-      # apps/package.json holds the portal links that pick the packages.
+      # The portal links in apps/package.json pick the packages
       run_tests_if_changed('frontend', ['frontend/**/*', 'apps/package.json']) do
         TestRunUtils.run_frontend_tests
       end
