@@ -9,6 +9,7 @@ on:
       - staging-next
     paths:
       - "frontend/**"
+      - "shared/fonts/**"
       - ".github/**"
   push:
     branches:
@@ -16,7 +17,9 @@ on:
       - staging-next
     paths:
       - "frontend/**"
+      - "shared/fonts/**"
       - ".github/**"
+  workflow_dispatch:
 
 # Limit Github Actions concurrency to a single ref; a new push cancels a pull request's running workflow.
 concurrency:
@@ -27,9 +30,7 @@ permissions:
   contents: read
 
 env:
-  # Sets the environment variable `AFFECTED` to determine the set of affected packages in this PR's scope using Turborepo's affected feature.
   # actions/checkout only fetches 2 levels deep, so `HEAD^1` is the pull request's base for Turborepo's `--affected` feature to detect what changed in this PR.
-  AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
   TURBO_SCM_BASE: HEAD^1
   # Limit to one Turborepo task per core
   TURBO_CONCURRENCY: 100%
@@ -48,6 +49,11 @@ jobs:
             .github
           lfs: true
           fetch-depth: 2
+
+      - name: Scope to Affected Packages
+        # Sets `AFFECTED` so Turborepo runs only the packages this PR changed and their dependents. A PR that changes the workflow itself runs everything, since Turborepo cannot see .github.
+        if: github.event_name == 'pull_request'
+        run: git diff --quiet HEAD^1 -- .github && echo "AFFECTED=--affected" >> "$GITHUB_ENV" || true
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
@@ -83,6 +89,11 @@ jobs:
         # System level: later steps run with a different HOME, and the container's root does not own the checkout.
         run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Scope to Affected Packages
+        # Sets `AFFECTED` so Turborepo runs only the packages this PR changed and their dependents. A PR that changes the workflow itself runs everything, since Turborepo cannot see .github.
+        if: github.event_name == 'pull_request'
+        run: git diff --quiet HEAD^1 -- .github && echo "AFFECTED=--affected" >> "$GITHUB_ENV" || true
+
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
@@ -114,8 +125,8 @@ jobs:
   # Deploys the package using its deployment script (e.g. Component Library storybook)
   deploy:
     name: deploy
-    if: ${{ github.event_name == 'push' }}
-    needs: release-dryrun
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    needs: [release-dryrun, test-ui]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
