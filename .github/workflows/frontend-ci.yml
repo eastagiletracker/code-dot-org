@@ -32,13 +32,31 @@ env:
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
+  playwright-image:
+    name: playwright image
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: frontend/.yarnrc.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Read the Catalog Pin
+        id: tag
+        # noble is the runner's Ubuntu release; jobs that use the image must stay on ubuntu-24.04.
+        run: |
+          version=$(grep -oP "^\s*'playwright': '\K[0-9.]+" frontend/.yarnrc.yml)
+          echo "tag=v${version}-noble" >> "$GITHUB_OUTPUT"
+
   release-dryrun:
     name: release:dryrun
+    needs: playwright-image
     runs-on: ubuntu-24.04
     container:
-      # Playwright container image, for Storybook's browser-mode vitest. Version must match the
-      # catalog pin in frontend/.yarnrc.yml; variant (noble/jammy) must match the runner's Ubuntu release.
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      # Storybook's browser-mode vitest needs Playwright's browsers.
+      image: mcr.microsoft.com/playwright:${{ needs.playwright-image.outputs.tag }}
     steps:
       - name: Install LFS
         run: apt-get update && apt-get install -y git-lfs
@@ -96,7 +114,7 @@ jobs:
 
   test-ui:
     name: test:ui ${{ matrix.package }}
-    needs: plan
+    needs: [playwright-image, plan]
     if: ${{ needs.plan.outputs.packages != '[]' }}
     strategy:
       fail-fast: false
@@ -105,7 +123,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:${{ needs.playwright-image.outputs.tag }}
     steps:
       - name: Install LFS
         run: apt-get update && apt-get install -y git-lfs
