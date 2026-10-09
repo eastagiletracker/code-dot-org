@@ -37,12 +37,14 @@ env:
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  # Determines whether this workflow itself changed. Turborepo's affected feature limits a PR's CI to the packages it
-  # changed and their dependents, but Turborepo cannot see `.github`, so a PR that changes the workflow runs everything.
+  # Determines whether this workflow itself changed, and which packages have UI tests. Turborepo's affected feature
+  # limits a PR's CI to the packages it changed and their dependents, but Turborepo cannot see `.github`, so a PR that
+  # changes the workflow runs everything.
   changes:
     runs-on: ubuntu-24.04
     outputs:
       workflow: ${{ steps.filter.outputs.workflow }}
+      ui-packages: ${{ steps.ui.outputs.packages }}
     steps:
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: filter
@@ -52,6 +54,23 @@ jobs:
           filters: |
             workflow:
               - '.github/**'
+
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            frontend
+            .github
+
+      - name: Setup Frontend
+        uses: ./.github/actions/frontend/setup
+
+      - name: List Packages With UI Tests
+        id: ui
+        # Asks Turborepo which packages define `test:ui:ci`; each gets its own runner below. Names are unscoped because artifact names cannot contain "/".
+        run: |
+          packages=$(yarn turbo query '{ packages(filter: {has: {field: TASK_NAME, value: "test:ui:ci"}}) { items { name } } }' | jq -c '[.data.packages.items[].name | ltrimstr("@code-dot-org/")]')
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+        working-directory: ./frontend
 
   release-dryrun:
     name: release:dryrun
@@ -78,18 +97,20 @@ jobs:
         working-directory: ./frontend
 
   test-ui:
-    name: test:ui:ci
+    name: test:ui:ci ${{ matrix.package }}
     needs: changes
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.changes.outputs.ui-packages) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
       # Must stay in sync with the playwright catalog pin in frontend/.yarnrc.yml; noble is the runner's Ubuntu release.
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
-      # Limits the run to the packages this PR changed and their dependents, unless the workflow itself changed.
-      AFFECTED: ${{ github.event_name == 'pull_request' && needs.changes.outputs.workflow != 'true' && '--affected' || '' }}
-      # Each suite already fills the runner with its own workers.
-      TURBO_CONCURRENCY: 1
+      # Runs this package's suite only if it or a dependency changed in this PR, unless the workflow itself changed.
+      SCOPE: ${{ github.event_name == 'pull_request' && needs.changes.outputs.workflow != 'true' && '...[HEAD^1]' || '' }}
     steps:
       - name: Install LFS
         run: apt-get update && apt-get install -y git-lfs
@@ -112,7 +133,7 @@ jobs:
 
       - name: UI Tests
         # HOME=/root is Playwright's Firefox-in-container fix.
-        run: yarn turbo run test:ui:ci $AFFECTED
+        run: yarn turbo run test:ui:ci --filter="@code-dot-org/${{ matrix.package }}$SCOPE"
         working-directory: ./frontend
         env:
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
@@ -128,7 +149,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.package }}
           path: |
             frontend/**/playwright-report/
             frontend/**/test-results/
