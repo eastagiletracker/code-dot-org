@@ -48,11 +48,6 @@ jobs:
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
-      - name: Install Playwright Browsers
-        # Storybook's browser-mode vitest runs on them.
-        run: npx playwright install --with-deps
-        working-directory: ./frontend
-
       - name: Build, Lint, Typecheck, Test
         # The runner's core count: each vitest task brings its own worker pool, and more tasks thrash tests into timeouts.
         run: yarn turbo run release:dryrun $AFFECTED --concurrency=4
@@ -106,10 +101,6 @@ jobs:
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
-
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-        working-directory: ./frontend
 
       - name: UI Tests
         # VISUAL_PROVIDER=applitools adds the @visual projects.

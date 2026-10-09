@@ -26,7 +26,7 @@
     "prettier": "prettier --check .",
     "prettier:fix": "prettier --write .",
     "storybook": "storybook dev -p 6006",
-    "test": "vitest --run",
+    "test": "playwright install --with-deps chromium && vitest --run",
     "test-storybook": "vitest --project=storybook",
     "test:ui": "tsx ./scripts/eyes-storybook.ts",
     "test:ui:local": "test-storybook --url http://localhost:6006",
