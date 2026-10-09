@@ -50,8 +50,8 @@ or symlink step required.
 yarn turbo run test --filter=@code-dot-org/oceans-lab
 
 # Playwright E2E against the standalone dev server.
-yarn workspace @code-dot-org/oceans-lab run test:ui          # local
-CI=true yarn workspace @code-dot-org/oceans-lab run test:ui  # CI mode: own server, retries
+yarn workspace @code-dot-org/oceans-lab run test:ui     # local
+yarn workspace @code-dot-org/oceans-lab run test:ui:ci  # CI mode
 
 # Override the target host:
 TARGET_URL=http://other-host:5173 yarn workspace @code-dot-org/oceans-lab run test:ui

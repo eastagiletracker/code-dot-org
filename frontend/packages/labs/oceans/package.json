@@ -31,7 +31,8 @@
     "prettier:fix": "prettier --write .",
     "preview": "vite preview",
     "test": "vitest --run",
-    "test:ui": "playwright install --with-deps && playwright test",
+    "test:ui": "playwright test",
+    "test:ui:ci": "playwright install --with-deps && CI=true playwright test",
     "test:visual:prove": "prove-visual",
     "typecheck": "tsc -b --noEmit"
   },

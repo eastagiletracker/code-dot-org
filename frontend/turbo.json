@@ -56,14 +56,29 @@
     },
     "test:ui": {
       "cache": false,
-      "dependsOn": ["build", "^test:ui"],
+      "dependsOn": ["^build", "^test:ui"],
+      "passThroughEnv": [
+        "APPLITOOLS_API_KEY",
+        "APPLITOOLS_BATCH_ID",
+        "APPLITOOLS_BATCH_NAME",
+        "APPLITOOLS_BRANCH",
+        "HOME",
+        "PLAYWRIGHT_BROWSERS_PATH",
+        "PLAYWRIGHT_PROVIDER",
+        "STAGE",
+        "TARGET_URL",
+        "VISUAL_PROVIDER"
+      ]
+    },
+    "test:ui:ci": {
+      "cache": false,
+      "dependsOn": ["build", "^test:ui:ci"],
       "passThroughEnv": [
         "APPLITOOLS_API_KEY",
         "APPLITOOLS_BATCH_ID",
         "APPLITOOLS_BATCH_NAME",
         "APPLITOOLS_BRANCH",
         "APPLITOOLS_SHOULD_REPORT_FAILURE",
-        "CI",
         "HOME",
         "PLAYWRIGHT_BROWSERS_PATH",
         "PLAYWRIGHT_PROVIDER",

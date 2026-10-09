@@ -55,7 +55,7 @@ jobs:
         working-directory: ./frontend
 
   test-ui:
-    name: test:ui
+    name: test:ui:ci
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
@@ -76,7 +76,7 @@ jobs:
 
       - name: UI Tests
         # VISUAL_PROVIDER=applitools adds the @visual projects.
-        run: yarn turbo run test:ui $AFFECTED
+        run: yarn turbo run test:ui:ci $AFFECTED
         working-directory: ./frontend
         env:
           VISUAL_PROVIDER: applitools

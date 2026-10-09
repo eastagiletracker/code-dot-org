@@ -7,13 +7,13 @@ Playwright end-to-end test suite for studio.code.org.
 From `frontend/`:
 
     # Against a local dashboard (http://localhost-studio.code.org:3000), Chromium only:
-    yarn workspace @code-dot-org/e2e-tests test:ui:legacy:local
+    yarn workspace @code-dot-org/e2e-tests test:ui:local
 
     # Against an adhoc (or any deployment), all browsers:
-    TARGET_URL=https://my-adhoc.cdn-code.org yarn workspace @code-dot-org/e2e-tests test:ui:legacy
+    TARGET_URL=https://my-adhoc.cdn-code.org yarn workspace @code-dot-org/e2e-tests test:ui
 
 `TARGET_URL` overrides the default target (`test-studio.code.org`). With no
-`TARGET_URL`, `test:ui:legacy` runs against test-studio.
+`TARGET_URL`, `test:ui` runs against test-studio.
 
 ## functional and eyes
 
