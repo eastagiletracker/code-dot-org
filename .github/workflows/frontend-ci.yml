@@ -29,6 +29,8 @@ env:
   AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
   # actions/checkout fetches depth 2, so HEAD^1 is the pull request's base for `--affected`.
   TURBO_SCM_BASE: HEAD^1
+  # One task per core; each vitest task brings its own worker pool.
+  TURBO_CONCURRENCY: 100%
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
@@ -49,8 +51,7 @@ jobs:
         uses: ./.github/actions/frontend/setup
 
       - name: Build, Lint, Typecheck, Test
-        # The runner's core count: each vitest task brings its own worker pool, and more tasks thrash tests into timeouts.
-        run: yarn turbo run release:dryrun $AFFECTED --concurrency=4
+        run: yarn turbo run release:dryrun $AFFECTED
         working-directory: ./frontend
 
   # Lists the packages that define `test:ui`, one matrix runner each
