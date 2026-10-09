@@ -52,7 +52,7 @@
     },
     "test": {
       "dependsOn": ["^build", "^test"],
-      "passThroughEnv": ["CI", "HOME", "PLAYWRIGHT_BROWSERS_PATH"]
+      "passThroughEnv": ["CI", "HOME"]
     },
     "test:ui": {
       "cache": false,

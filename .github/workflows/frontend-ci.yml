@@ -32,35 +32,10 @@ env:
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  playwright-image:
-    name: playwright image
-    runs-on: ubuntu-24.04
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: frontend/.yarnrc.yml
-          sparse-checkout-cone-mode: false
-
-      - name: Read the Catalog Pin
-        id: tag
-        # noble is the runner's Ubuntu release; jobs that use the image must stay on ubuntu-24.04.
-        run: |
-          version=$(grep -oP "^\s*'playwright': '\K[0-9.]+" frontend/.yarnrc.yml)
-          echo "tag=v${version}-noble" >> "$GITHUB_OUTPUT"
-
   release-dryrun:
     name: release:dryrun
-    needs: playwright-image
     runs-on: ubuntu-24.04
-    container:
-      # Storybook's browser-mode vitest needs Playwright's browsers.
-      image: mcr.microsoft.com/playwright:${{ needs.playwright-image.outputs.tag }}
     steps:
-      - name: Install LFS
-        run: apt-get update && apt-get install -y git-lfs
-
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -70,20 +45,18 @@ jobs:
           lfs: true
           fetch-depth: 2
 
-      - name: Trust the Checkout
-        # System level: later steps run with a different HOME, and the container's root does not own the checkout.
-        run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
+
+      - name: Install Playwright Browsers
+        # Storybook's browser-mode vitest runs on them.
+        run: yarn playwright install --with-deps
+        working-directory: ./frontend
 
       - name: Build, Lint, Typecheck, Test
         # The runner's core count: each vitest task brings its own worker pool, and more tasks thrash tests into timeouts.
         run: yarn turbo run release:dryrun $AFFECTED --concurrency=4
         working-directory: ./frontend
-        env:
-          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-          HOME: /root
 
   # Lists the packages that define `test:ui`, one matrix runner each
   plan:
@@ -114,7 +87,7 @@ jobs:
 
   test-ui:
     name: test:ui ${{ matrix.package }}
-    needs: [playwright-image, plan]
+    needs: plan
     if: ${{ needs.plan.outputs.packages != '[]' }}
     strategy:
       fail-fast: false
@@ -122,12 +95,7 @@ jobs:
         package: ${{ fromJson(needs.plan.outputs.packages) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    container:
-      image: mcr.microsoft.com/playwright:${{ needs.playwright-image.outputs.tag }}
     steps:
-      - name: Install LFS
-        run: apt-get update && apt-get install -y git-lfs
-
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -136,19 +104,18 @@ jobs:
             .github
           lfs: true
 
-      - name: Trust the Checkout
-        run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
+      - name: Install Playwright Browsers
+        run: yarn playwright install --with-deps
+        working-directory: ./frontend
+
       - name: UI Tests
-        # VISUAL_PROVIDER=applitools adds the @visual projects. HOME=/root is Playwright's Firefox-in-container fix.
+        # VISUAL_PROVIDER=applitools adds the @visual projects.
         run: yarn turbo run test:ui --filter=@code-dot-org/${{ matrix.package }}
         working-directory: ./frontend
         env:
-          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-          HOME: /root
           VISUAL_PROVIDER: applitools
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
           # Pull requests only report Eyes diffs; the post-merge push fails on them.
@@ -175,10 +142,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Install LFS
-        # Keeps turbo hashes equal to release-dryrun's, so the builds are cache hits.
-        run: sudo apt-get update && sudo apt-get install -y git-lfs
-
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
