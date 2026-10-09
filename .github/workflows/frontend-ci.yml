@@ -46,20 +46,23 @@ jobs:
       workflow: ${{ steps.filter.outputs.workflow }}
       ui-packages: ${{ steps.ui.outputs.packages }}
     steps:
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
-        id: filter
-        # Pull requests are diffed through the API; a push needs a checkout, and runs everything regardless.
-        if: github.event_name == 'pull_request'
-        with:
-          filters: |
-            workflow:
-              - '.github/**'
-
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
             frontend
             .github
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        # A manual dispatch runs everything, so there is nothing to diff.
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          # Pushes diff against the same commit Turborepo's `--affected` uses; pull requests ignore this and use the API.
+          base: HEAD^1
+          filters: |
+            workflow:
+              - '.github/**'
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
@@ -77,8 +80,8 @@ jobs:
     needs: changes
     runs-on: ubuntu-24.04
     env:
-      # Limits the run to the packages this PR changed and their dependents, unless the workflow itself changed.
-      AFFECTED: ${{ github.event_name == 'pull_request' && needs.changes.outputs.workflow != 'true' && '--affected' || '' }}
+      # Limits the run to the packages this change touched and their dependents, unless the workflow itself changed or it was dispatched by hand.
+      AFFECTED: ${{ github.event_name != 'workflow_dispatch' && needs.changes.outputs.workflow != 'true' && '--affected' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,8 +112,8 @@ jobs:
       # Must stay in sync with the playwright catalog pin in frontend/.yarnrc.yml; noble is the runner's Ubuntu release.
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
-      # Runs this package's suite only if it or a dependency changed in this PR, unless the workflow itself changed.
-      SCOPE: ${{ github.event_name == 'pull_request' && needs.changes.outputs.workflow != 'true' && '...[HEAD^1]' || '' }}
+      # Runs this package's suite only if it or a dependency changed, unless the workflow itself changed or it was dispatched by hand.
+      SCOPE: ${{ github.event_name != 'workflow_dispatch' && needs.changes.outputs.workflow != 'true' && '...[HEAD^1]' || '' }}
       # Playwright's Firefox-in-container fix. Job-wide so the install and the tests share one home, where Puppeteer caches its Chrome.
       HOME: /root
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
@@ -160,10 +163,13 @@ jobs:
   deploy:
     name: deploy
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-    needs: [release-dryrun, test-ui]
+    needs: [changes, release-dryrun, test-ui]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      # Deploys only the packages this push touched, unless the workflow itself changed or it was dispatched by hand.
+      AFFECTED: ${{ github.event_name != 'workflow_dispatch' && needs.changes.outputs.workflow != 'true' && '--affected' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -172,6 +178,7 @@ jobs:
             shared/fonts
             .github
           lfs: true
+          fetch-depth: 2
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
@@ -183,7 +190,7 @@ jobs:
           git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Deploy
-        run: yarn turbo run deploy
+        run: yarn turbo run deploy $AFFECTED
         working-directory: ./frontend
 
   # Common teardown actions that must occur after _all_ jobs have completed.
