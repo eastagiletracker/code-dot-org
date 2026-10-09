@@ -4,7 +4,7 @@
 
 set -x
 
-# Finds all apps dependencies which are portaled `frontend` packages.
+# Finds all apps dependencies which are portaled `frontend` packages. Then convert them to turborepo filters to scope which packages to build.
 APPS_DEPENDENCIES=($(node --print '
   Object.entries(require("./package.json").dependencies)
     .filter(([, version]) => version.startsWith("portal:../frontend"))
