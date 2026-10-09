@@ -111,6 +111,9 @@ jobs:
     env:
       # Runs this package's suite only if it or a dependency changed in this PR, unless the workflow itself changed.
       SCOPE: ${{ github.event_name == 'pull_request' && needs.changes.outputs.workflow != 'true' && '...[HEAD^1]' || '' }}
+      # Playwright's Firefox-in-container fix. Job-wide so the install and the tests share one home, where Puppeteer caches its Chrome.
+      HOME: /root
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     steps:
       - name: Install LFS
         run: apt-get update && apt-get install -y git-lfs
@@ -132,12 +135,9 @@ jobs:
         uses: ./.github/actions/frontend/setup
 
       - name: UI Tests
-        # HOME=/root is Playwright's Firefox-in-container fix.
         run: yarn turbo run test:ui:ci --filter="@code-dot-org/${{ matrix.package }}$SCOPE"
         working-directory: ./frontend
         env:
-          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-          HOME: /root
           VISUAL_PROVIDER: applitools
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
           # Pull requests only report Eyes diffs; the post-merge push fails on them.
