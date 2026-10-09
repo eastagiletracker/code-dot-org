@@ -1,5 +1,5 @@
-# Common workflow for execution of continuous integration for the `frontend` code base.
-# Each job runs one turbo task; a package takes part once its package.json defines the script.
+# This workflow uses Turborepo's affected feature which limits CI runs to only packages the PR has affected.
+# The workflow triggers a limited set of Turborepo standardized CI-related scripts. Ensure the package has the appropriate CI script for Github Actions to run them during the CI process.
 name: Frontend-CI
 
 on:
@@ -18,6 +18,7 @@ on:
       - "frontend/**"
       - ".github/**"
 
+# Limit Github Actions concurrency to a single ref; a new push cancels a pull request's running workflow.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -26,10 +27,11 @@ permissions:
   contents: read
 
 env:
+  # Sets the environment variable `AFFECTED` to determine the set of affected packages in this PR's scope using Turborepo's affected feature.
+  # actions/checkout only fetches 2 levels deep, so `HEAD^1` is the pull request's base for Turborepo's `--affected` feature to detect what changed in this PR.
   AFFECTED: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
-  # actions/checkout fetches depth 2, so HEAD^1 is the pull request's base for `--affected`.
   TURBO_SCM_BASE: HEAD^1
-  # One task per core; each vitest task brings its own worker pool.
+  # Limit to one Turborepo task per core
   TURBO_CONCURRENCY: 100%
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -97,7 +99,7 @@ jobs:
         uses: ./.github/actions/frontend/setup
 
       - name: UI Tests
-        # VISUAL_PROVIDER=applitools adds the @visual projects. HOME=/root is Playwright's Firefox-in-container fix.
+        # HOME=/root is Playwright's Firefox-in-container fix.
         run: yarn turbo run test:ui:ci $AFFECTED
         working-directory: ./frontend
         env:
@@ -121,6 +123,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # Deploys the package using its deployment script (e.g. Component Library storybook)
   deploy:
     name: deploy
     if: ${{ github.event_name == 'push' }}
