@@ -54,43 +54,13 @@ jobs:
         run: yarn turbo run release:dryrun $AFFECTED
         working-directory: ./frontend
 
-  # Lists the packages that define `test:ui`, one matrix runner each
-  plan:
-    name: test:ui plan
-    runs-on: ubuntu-24.04
-    outputs:
-      packages: ${{ steps.packages.outputs.packages }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            frontend
-            .github
-          fetch-depth: 2
-
-      - name: Setup Frontend
-        uses: ./.github/actions/frontend/setup
-
-      - name: List test:ui Packages
-        id: packages
-        # Package names without their scope, since artifact names cannot contain "/".
-        run: |
-          packages=$(yarn turbo run test:ui $AFFECTED --dry=json \
-            | jq -c '[.tasks[] | select(.task == "test:ui" and .command != "<NONEXISTENT>") | .package | ltrimstr("@code-dot-org/")]')
-          echo "packages=$packages" >> "$GITHUB_OUTPUT"
-          echo "$packages"
-        working-directory: ./frontend
-
   test-ui:
-    name: test:ui ${{ matrix.package }}
-    needs: plan
-    if: ${{ needs.plan.outputs.packages != '[]' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.plan.outputs.packages) }}
+    name: test:ui
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      # Each suite already fills the runner with its own workers.
+      TURBO_CONCURRENCY: 1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -99,13 +69,14 @@ jobs:
             shared/fonts
             .github
           lfs: true
+          fetch-depth: 2
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
       - name: UI Tests
         # VISUAL_PROVIDER=applitools adds the @visual projects.
-        run: yarn turbo run test:ui --filter=@code-dot-org/${{ matrix.package }}
+        run: yarn turbo run test:ui $AFFECTED
         working-directory: ./frontend
         env:
           VISUAL_PROVIDER: applitools
@@ -119,7 +90,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.package }}
+          name: playwright-report
           path: |
             frontend/**/playwright-report/
             frontend/**/test-results/
