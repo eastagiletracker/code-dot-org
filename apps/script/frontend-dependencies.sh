@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# This script runs a turbo task (`build` by default) over the dependencies of the `apps` (CodeAI Studio)
-# directory which reside in the `frontend` directory, plus their own dependencies. Run it from `apps`.
+# Runs a turbo task (`build` by default) over the `frontend` packages that `apps` consumes. Run from `apps`.
 
 set -x
 
-# The dependencies are the `portal:` entries in `apps/package.json`.
+# The `portal:` entries in `apps/package.json`.
 APPS_DEPENDENCIES=($(node --print '
   Object.entries(require("./package.json").dependencies)
     .filter(([, version]) => version.startsWith("portal:../frontend"))

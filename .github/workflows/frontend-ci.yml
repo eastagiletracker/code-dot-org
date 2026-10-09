@@ -1,8 +1,5 @@
 # Common workflow for execution of continuous integration for the `frontend` code base.
-# Each job runs one turbo task across every app and package in `frontend`. A package takes part
-# as soon as its package.json defines the script, and turbo skips the packages that do not.
-# Pull requests run only the packages they change and their dependents; pushes run everything,
-# with turbo's cache skipping what is unchanged.
+# Each job runs one turbo task; a package takes part once its package.json defines the script.
 name: Frontend-CI
 
 on:
@@ -35,14 +32,12 @@ env:
   APPLITOOLS_BATCH_ID: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  # Builds, lints, typechecks and tests every affected package
   release-dryrun:
     name: release:dryrun
     runs-on: ubuntu-24.04
     container:
-      # Playwright container image, needed for Storybook's vitest browser project. Version must
-      # match the catalog pin in frontend/.yarnrc.yml; variant (noble/jammy) must match the
-      # runner's Ubuntu release.
+      # Playwright container image, for Storybook's browser-mode vitest. Version must match the
+      # catalog pin in frontend/.yarnrc.yml; variant (noble/jammy) must match the runner's Ubuntu release.
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     steps:
       - name: Install LFS
@@ -58,24 +53,21 @@ jobs:
           fetch-depth: 2
 
       - name: Trust the Checkout
-        # The container's root user does not own the checkout, and git refuses to read a
-        # repository owned by someone else. System level, since later steps run with a different HOME.
+        # System level: later steps run with a different HOME, and the container's root does not own the checkout.
         run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
       - name: Build, Lint, Typecheck, Test
-        # Concurrency matches the runner's core count. Each vitest task brings its own worker
-        # pool, so turbo's default of 10 concurrent tasks thrashes 4 cores until tests hit
-        # their 5s timeout.
+        # The runner's core count: each vitest task brings its own worker pool, and more tasks thrash tests into timeouts.
         run: yarn turbo run release:dryrun $AFFECTED --concurrency=4
         working-directory: ./frontend
         env:
           PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
           HOME: /root
 
-  # Lists the packages that define `test:ui`, for the matrix below
+  # Lists the packages that define `test:ui`, one matrix runner each
   plan:
     name: test:ui plan
     runs-on: ubuntu-24.04
@@ -102,7 +94,6 @@ jobs:
           echo "$packages"
         working-directory: ./frontend
 
-  # Runs each package's own browser suite on its own runner
   test-ui:
     name: test:ui ${{ matrix.package }}
     needs: plan
@@ -134,9 +125,7 @@ jobs:
         uses: ./.github/actions/frontend/setup
 
       - name: UI Tests
-        # One Playwright run covers the package's functional projects and, with
-        # VISUAL_PROVIDER=applitools, its @visual projects against Eyes.
-        # HOME=/root is Playwright's Firefox-in-container fix.
+        # VISUAL_PROVIDER=applitools adds the @visual projects. HOME=/root is Playwright's Firefox-in-container fix.
         run: yarn turbo run test:ui --filter=@code-dot-org/${{ matrix.package }}
         working-directory: ./frontend
         env:
@@ -144,8 +133,7 @@ jobs:
           HOME: /root
           VISUAL_PROVIDER: applitools
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
-          # On PRs an Eyes diff is reported to the dashboard but does not fail
-          # the run; the post-merge push run on staging still fails hard on diffs.
+          # Pull requests only report Eyes diffs; the post-merge push fails on them.
           APPLITOOLS_SHOULD_REPORT_FAILURE: ${{ github.event_name != 'pull_request' }}
           APPLITOOLS_BRANCH: ${{ github.head_ref }}
 
@@ -161,7 +149,6 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # Runs each package's `deploy` script after a merge to staging
   deploy:
     name: deploy
     if: ${{ github.event_name == 'push' }}
@@ -196,7 +183,6 @@ jobs:
         working-directory: ./frontend
 
   # Common teardown actions that must occur after _all_ jobs have completed.
-  # For example, closing the Applitools batch after its completion.
   teardown:
     needs: [release-dryrun, test-ui]
     if: always()
