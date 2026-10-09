@@ -70,7 +70,7 @@ jobs:
   test-ui:
     name: test:ui:ci
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 30
     container:
       # Same image as release:dryrun; keep the two in sync.
       image: mcr.microsoft.com/playwright:v1.59.1-noble
