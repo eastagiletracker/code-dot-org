@@ -223,9 +223,9 @@ by default; widen with `visualProjects({browsers})`.
 
 CI needs no registration. `frontend-ci.yml` runs the verbs a package may
 implement (`release:dryrun`, `test:ui`, `deploy`) through turbo, so a package is
-covered as soon as its `package.json` defines the script. `test:ui` runs in the
-pinned Playwright container with `VISUAL_PROVIDER=applitools` and
-`APPLITOOLS_API_KEY`, so `@visual` tests diff against Eyes.
+covered as soon as its `package.json` defines the script. A package installs the
+browsers it needs in its own script. `test:ui` runs with `VISUAL_PROVIDER=applitools`
+and `APPLITOOLS_API_KEY`, so `@visual` tests diff against Eyes.
 
 ## Runtime config
 
