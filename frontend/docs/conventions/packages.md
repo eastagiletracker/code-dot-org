@@ -213,7 +213,7 @@ Each lab is generated with a Playwright e2e suite:
 - `e2e/visual.spec.ts` — a seed `@visual` checkpoint of the initial render
 
 Run locally: `yarn test:ui` (functional only; reuses an already-running `yarn dev` at port 5173).
-Run in CI: `yarn test:ui:ci` (installs its browsers, spins up its own server via `webServer`).
+Run in CI: `yarn test:ui:ci` (spins up its own server via `webServer`).
 
 Visual regression rides on `@code-dot-org/playwright-support`: writing a
 `visualCheck()` is the only opt-in. No baselines are committed —

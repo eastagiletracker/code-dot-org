@@ -32,7 +32,7 @@
     "preview": "vite preview",
     "test": "vitest --run",
     "test:ui": "playwright test",
-    "test:ui:ci": "playwright install --with-deps && CI=true playwright test",
+    "test:ui:ci": "CI=true playwright test",
     "test:visual:prove": "prove-visual",
     "typecheck": "tsc -b --noEmit"
   },

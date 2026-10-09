@@ -37,7 +37,13 @@ jobs:
   release-dryrun:
     name: release:dryrun
     runs-on: ubuntu-24.04
+    container:
+      # Must stay in sync with the playwright catalog pin in frontend/.yarnrc.yml; noble is the runner's Ubuntu release.
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
     steps:
+      - name: Install LFS
+        run: apt-get update && apt-get install -y git-lfs
+
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -46,6 +52,10 @@ jobs:
             .github
           lfs: true
           fetch-depth: 2
+
+      - name: Trust the Checkout
+        # System level: later steps run with a different HOME, and the container's root does not own the checkout.
+        run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
@@ -53,15 +63,24 @@ jobs:
       - name: Build, Lint, Typecheck, Test
         run: yarn turbo run release:dryrun $AFFECTED
         working-directory: ./frontend
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+          HOME: /root
 
   test-ui:
     name: test:ui:ci
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    container:
+      # Same image as release:dryrun; keep the two in sync.
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
       # Each suite already fills the runner with its own workers.
       TURBO_CONCURRENCY: 1
     steps:
+      - name: Install LFS
+        run: apt-get update && apt-get install -y git-lfs
+
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -71,14 +90,19 @@ jobs:
           lfs: true
           fetch-depth: 2
 
+      - name: Trust the Checkout
+        run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
       - name: UI Tests
-        # VISUAL_PROVIDER=applitools adds the @visual projects.
+        # VISUAL_PROVIDER=applitools adds the @visual projects. HOME=/root is Playwright's Firefox-in-container fix.
         run: yarn turbo run test:ui:ci $AFFECTED
         working-directory: ./frontend
         env:
+          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+          HOME: /root
           VISUAL_PROVIDER: applitools
           APPLITOOLS_API_KEY: ${{ secrets.APPLITOOLS_API_KEY }}
           # Pull requests only report Eyes diffs; the post-merge push fails on them.
