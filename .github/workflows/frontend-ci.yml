@@ -50,7 +50,7 @@ jobs:
 
       - name: Install Playwright Browsers
         # Storybook's browser-mode vitest runs on them.
-        run: yarn playwright install --with-deps
+        run: npx playwright install --with-deps
         working-directory: ./frontend
 
       - name: Build, Lint, Typecheck, Test
@@ -108,7 +108,7 @@ jobs:
         uses: ./.github/actions/frontend/setup
 
       - name: Install Playwright Browsers
-        run: yarn playwright install --with-deps
+        run: npx playwright install --with-deps
         working-directory: ./frontend
 
       - name: UI Tests
