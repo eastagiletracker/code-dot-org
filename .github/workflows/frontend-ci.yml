@@ -39,13 +39,7 @@ jobs:
   release-dryrun:
     name: release:dryrun
     runs-on: ubuntu-24.04
-    container:
-      # Must stay in sync with the playwright catalog pin in frontend/.yarnrc.yml; noble is the runner's Ubuntu release.
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
     steps:
-      - name: Install LFS
-        run: apt-get update && apt-get install -y git-lfs
-
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -55,26 +49,19 @@ jobs:
           lfs: true
           fetch-depth: 2
 
-      - name: Trust the Checkout
-        # System level: later steps run with a different HOME, and the container's root does not own the checkout.
-        run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Setup Frontend
         uses: ./.github/actions/frontend/setup
 
       - name: Build, Lint, Typecheck, Test
         run: yarn turbo run release:dryrun $AFFECTED
         working-directory: ./frontend
-        env:
-          PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-          HOME: /root
 
   test-ui:
     name: test:ui:ci
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     container:
-      # Same image as release:dryrun; keep the two in sync.
+      # Must stay in sync with the playwright catalog pin in frontend/.yarnrc.yml; noble is the runner's Ubuntu release.
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
       # Each suite already fills the runner with its own workers.
@@ -93,6 +80,7 @@ jobs:
           fetch-depth: 2
 
       - name: Trust the Checkout
+        # System level: later steps run with a different HOME, and the container's root does not own the checkout.
         run: git config --system --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Frontend

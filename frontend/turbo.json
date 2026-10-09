@@ -51,8 +51,7 @@
       "dependsOn": ["^build", "^typecheck"]
     },
     "test": {
-      "dependsOn": ["^build", "^test"],
-      "passThroughEnv": ["CI", "HOME", "PLAYWRIGHT_BROWSERS_PATH"]
+      "dependsOn": ["^build", "^test"]
     },
     "test:ui": {
       "cache": false,
